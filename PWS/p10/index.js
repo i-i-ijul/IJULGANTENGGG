@@ -5,7 +5,7 @@ const dotenv = require("dotenv");
 dotenv.config();
 
 const app = express();
-const port = 3000;
+const port = process.env.PORT || 3000;
 
 app.use(express.json());
 app.use(express.static("public"));
@@ -55,13 +55,22 @@ app.post("/api/chat", async (req, res) => {
 
         // Cek error OpenRouter
         if (!response.ok) {
-            const errorData = await response.text();
+            let errorText = "";
 
-            console.error("OpenRouter Error:", errorData);
+            try {
+                errorText = await response.text();
+            } catch (_) {
+                errorText = "[tidak bisa baca response]";
+            }
 
-            return res.status(response.status).json({
-                error: errorData
-            });
+            // Kalau balasan dari Vercel/Express bukan JSON, tampilin HTML-nya
+            const isHtml = /<!DOCTYPE/i.test(errorText) || /<html/i.test(errorText);
+            const msg = isHtml
+                ? `Server merespons format yang salah (${response.status}): ${errorText.slice(0, 200)}`
+                : errorText;
+
+            console.error("OpenRouter Error:", msg);
+            return res.status(response.status).json({ error: msg });
         }
 
         // Header SSE
@@ -166,6 +175,15 @@ app.post("/api/chat", async (req, res) => {
             res.end();
         }
     }
+});
+
+// Middleware error handling untuk Express
+app.use((err, req, res, next) => {
+    console.error("Server error:", err);
+    if (res.headersSent) {
+        return res.status(500).json({ error: "Terjadi kesalahan pada server" });
+    }
+    res.status(500).json({ error: err.message || "Terjadi kesalahan" });
 });
 
 // Lokal (npm start / node index.js)
