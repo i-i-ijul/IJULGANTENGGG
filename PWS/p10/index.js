@@ -1,6 +1,7 @@
 
 const express = require("express");
 const dotenv = require("dotenv");
+const serverless = require("serverless-http");
 
 dotenv.config();
 
@@ -193,5 +194,14 @@ if (require.main === module) {
     });
 }
 
-// Untuk Vercel (serverless): ekspor app, jangan listen
-module.exports = app;
+// Untuk Vercel (serverless): jalankan lewat serverless-http
+module.exports = async (req, res) => {
+    return serverless(app)(req, res);
+};
+
+// Lokal (npm start / node index.js)
+if (require.main === module) {
+    app.listen(port, () => {
+        console.log(`Server berjalan di http://localhost:${port}`);
+    });
+}
