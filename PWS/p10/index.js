@@ -1,3 +1,4 @@
+
 const express = require("express");
 const dotenv = require("dotenv");
 
@@ -9,30 +10,42 @@ const port = 3000;
 app.use(express.json());
 app.use(express.static("public"));
 
-app.get("/", (req,res) => {
+app.get("/", (req, res) => {
     res.redirect("/index.html");
 });
 
 app.post("/api/chat", async (req, res) => {
+    console.log("Request masuk ke Express!");
+
     try {
         const messages = req.body.messages;
-        if (!messages || !Array.isArray(messages)) {
+
+        if (!Array.isArray(messages)) {
             return res.status(400).json({
                 error: "Messages harus berupa array"
             });
         }
+
+        if (!process.env.OPENROUTER_API_KEY) {
+            return res.status(500).json({
+                error: "API key belum diatur di file .env"
+            });
+        }
+
+        // Request ke OpenRouter
         const response = await fetch(
             "https://openrouter.ai/api/v1/chat/completions",
             {
-                method = "POST",
+                method: "POST",
+
                 headers: {
                     "Content-Type": "application/json",
-                    "Authorization": `Bearer $(process.env.OPENROUTER_API_KEY)`
+                    "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`
                 },
 
                 body: JSON.stringify({
                     model: "inclusionai/ling-3.2-flash:free",
-                    messages: messages,
+                    messages,
                     temperature: 0.7,
                     max_tokens: 1000,
                     stream: true
@@ -40,6 +53,7 @@ app.post("/api/chat", async (req, res) => {
             }
         );
 
+        // Cek error OpenRouter
         if (!response.ok) {
             const errorData = await response.text();
 
@@ -49,5 +63,22 @@ app.post("/api/chat", async (req, res) => {
                 error: errorData
             });
         }
-    }
-})
+
+        // Header SSE
+        res.setHeader("Content-Type", "text/event-stream");
+        res.setHeader("Cache-Control", "no-cache");
+        res.setHeader("Connection", "keep-alive");
+
+        res.flushHeaders();
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+
+        let buffer = "";
+
+        function processLine(line) {
+            const trimmedLine = line.trim();
+
+            if (!trimmedLine.startsWith("data:")) {
+                return;
+            }
