@@ -137,3 +137,19 @@ app.post("/api/chat", async (req, res) => {
             }
         }
 
+        // Proses sisa data
+        buffer += decoder.decode();
+
+        if (buffer.trim()) {
+            processLine(buffer);
+        }
+
+        if (!res.destroyed && !res.writableEnded) {
+            res.write("data: [DONE]\n\n");
+            res.end();
+        }
+
+    } catch (error) {
+        console.error("Server error:", error);
+
+
