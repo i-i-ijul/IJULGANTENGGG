@@ -168,6 +168,12 @@ app.post("/api/chat", async (req, res) => {
     }
 });
 
-app.listen(port, () => {
-    console.log(`Server berjalan di http://localhost:${port}`);
-});
+// Lokal (npm start / node index.js)
+if (require.main === module) {
+    app.listen(port, () => {
+        console.log(`Server berjalan di http://localhost:${port}`);
+    });
+}
+
+// Untuk Vercel (serverless): ekspor app, jangan listen
+module.exports = app;
